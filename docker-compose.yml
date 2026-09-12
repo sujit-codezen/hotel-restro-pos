@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pos_restro_hotel
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # Host 5434 -> container 5432: 5432 is taken by a native Postgres.app
+      # instance and 5433 by another project's container on this machine.
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis is not containerized in dev — a local `redis-server` on 6379 is
+  # assumed to already be running (add a redis service back here for
+  # production docker-compose, see plan section 6).
+
+volumes:
+  postgres_data:
