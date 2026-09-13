@@ -661,23 +661,25 @@ export function PosOrderScreen({ orderId, onSwitchOrder, onDone, chargeToRoom }:
         <CardContent className="space-y-4 p-4">
           <p className="font-semibold text-neutral-900">Order List</p>
 
-          <div className="flex rounded-lg bg-neutral-100 p-1 text-xs font-medium">
-            {ORDER_TYPE_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => changeOrderType.mutate(tab.value)}
-                disabled={cartLocked || changeOrderType.isPending || order.order_type === tab.value}
-                className={cn(
-                  "flex-1 rounded-md py-1.5 transition-colors disabled:cursor-default",
-                  order.order_type === tab.value
-                    ? "bg-white text-[#E5484D] shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-700 disabled:hover:text-neutral-500"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {!chargeToRoom && (
+            <div className="flex rounded-lg bg-neutral-100 p-1 text-xs font-medium">
+              {ORDER_TYPE_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => changeOrderType.mutate(tab.value)}
+                  disabled={cartLocked || changeOrderType.isPending || order.order_type === tab.value}
+                  className={cn(
+                    "flex-1 rounded-md py-1.5 transition-colors disabled:cursor-default",
+                    order.order_type === tab.value
+                      ? "bg-white text-[#E5484D] shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-700 disabled:hover:text-neutral-500"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {order.order_type === "DINE_IN" && (
             <div>
@@ -785,38 +787,40 @@ export function PosOrderScreen({ orderId, onSwitchOrder, onDone, chargeToRoom }:
             )}
           </div>
 
-          <div className="space-y-1 border-t border-neutral-100 pt-3">
-            {attachedCustomer ? (
-              <p className="text-sm">
-                Customer: <span className="font-medium">{attachedCustomer.name || attachedCustomer.phone}</span>
-              </p>
-            ) : (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-neutral-400">Attach customer (optional)</p>
-                <div className="flex gap-1.5">
-                  <input
-                    placeholder="Phone"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2 text-xs outline-none focus:border-[#E5484D]"
-                  />
-                  <input
-                    placeholder="Name"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2 text-xs outline-none focus:border-[#E5484D]"
-                  />
+          {!chargeToRoom && (
+            <div className="space-y-1 border-t border-neutral-100 pt-3">
+              {attachedCustomer ? (
+                <p className="text-sm">
+                  Customer: <span className="font-medium">{attachedCustomer.name || attachedCustomer.phone}</span>
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-neutral-400">Attach customer (optional)</p>
+                  <div className="flex gap-1.5">
+                    <input
+                      placeholder="Phone"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2 text-xs outline-none focus:border-[#E5484D]"
+                    />
+                    <input
+                      placeholder="Name"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2 text-xs outline-none focus:border-[#E5484D]"
+                    />
+                  </div>
+                  <button
+                    disabled={!customerPhone || attachCustomer.isPending}
+                    onClick={() => attachCustomer.mutate()}
+                    className="w-full rounded-lg bg-neutral-100 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50"
+                  >
+                    Attach
+                  </button>
                 </div>
-                <button
-                  disabled={!customerPhone || attachCustomer.isPending}
-                  onClick={() => attachCustomer.mutate()}
-                  className="w-full rounded-lg bg-neutral-100 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50"
-                >
-                  Attach
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-1 border-t border-neutral-100 pt-3 text-sm">
             <div className="flex justify-between text-neutral-500">
