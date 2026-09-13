@@ -9,6 +9,7 @@ import { PosOrderScreen } from "@/components/pos-order-screen";
 import {
   BedIcon,
   DoorIcon,
+  ListIcon,
   PlusIcon,
   ReceiptIcon,
   UsersIcon,
@@ -150,15 +151,159 @@ function DepositModal({
   );
 }
 
+/** Popup for adding a one-off charge (laundry, service, misc) straight to
+ * the folio — pulled out of the old inline-expanding card so it can sit
+ * alongside Food/Take advance as one of three equal quick-action cards
+ * instead of pushing the layout around when opened. */
+function AddChargeModal({
+  onClose,
+  onSubmit,
+  submitting,
+  error,
+}: {
+  onClose: () => void;
+  onSubmit: (values: { lineType: string; amount: string; description: string }) => void;
+  submitting: boolean;
+  error: string | null;
+}) {
+  const [lineType, setLineType] = useState("MISC");
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const valid = description.trim() && amount.trim() && parseFloat(amount) > 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm animate-[fadeIn_0.15s_ease-out] rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 border-b border-neutral-100 p-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FDECEC] text-[#E5484D]">
+            <ListIcon className="h-5 w-5" />
+          </span>
+          <p className="flex-1 font-semibold text-neutral-900">Add manual charge</p>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+            aria-label="Close"
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-400">Type</label>
+            <div className="grid grid-cols-3 gap-2">
+              {LINE_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setLineType(t)}
+                  className={cn(
+                    "rounded-xl border py-2 text-xs font-medium transition-colors",
+                    lineType === t
+                      ? "border-[#E5484D] bg-[#FDECEC] text-[#E5484D]"
+                      : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-400">Description</label>
+            <input
+              autoFocus
+              placeholder="e.g. Laundry service"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[#E5484D]"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-400">Amount</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[#E5484D]"
+            />
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+
+        <div className="flex gap-2 border-t border-neutral-100 p-4">
+          <button
+            onClick={onClose}
+            className="rounded-xl px-4 py-2.5 text-sm font-medium text-neutral-500 hover:bg-neutral-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => valid && onSubmit({ lineType, amount, description })}
+            disabled={!valid || submitting}
+            className="flex-1 rounded-xl bg-[#E5484D] py-2.5 text-sm font-medium text-white hover:bg-[#D6393E] disabled:opacity-60"
+          >
+            {submitting ? "Adding…" : "Add charge"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** One of the three equal quick-action cards (Food / Manual charge / Take
+ * advance) above the fold, so all three read as the same weight of action
+ * instead of one being a full-width button and another an inline form. */
+function QuickActionCard({
+  icon,
+  label,
+  onClick,
+  disabled,
+  badge,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  badge?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="relative flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
+    >
+      {badge && (
+        <span className="absolute right-2 top-2 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+          {badge}
+        </span>
+      )}
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FDECEC] text-[#E5484D]">
+        {icon}
+      </span>
+      <span className="text-xs font-medium text-neutral-700">{label}</span>
+    </button>
+  );
+}
+
 export default function FolioPage() {
   const { guestStayId } = useParams<{ guestStayId: string }>();
   const queryClient = useQueryClient();
   const { data: stores } = useStores();
 
-  const [lineType, setLineType] = useState("MISC");
-  const [description, setDescription] = useState("");
-  const [chargeAmount, setChargeAmount] = useState("");
   const [showAddCharge, setShowAddCharge] = useState(false);
+  const [addChargeError, setAddChargeError] = useState<string | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
   const [depositError, setDepositError] = useState<string | null>(null);
   const [confirmingCheckout, setConfirmingCheckout] = useState(false);
@@ -215,19 +360,19 @@ export default function FolioPage() {
   }, [roomServiceOrders, activeOrderId, dismissed]);
 
   const addLine = useMutation({
-    mutationFn: async () =>
+    mutationFn: async (values: { lineType: string; amount: string; description: string }) =>
       api.post(`/folios/${folio!.id}/lines/`, {
-        line_type: lineType,
-        description,
+        line_type: values.lineType,
+        description: values.description,
         quantity: 1,
-        unit_price: chargeAmount,
+        unit_price: values.amount,
       }),
     onSuccess: () => {
-      setDescription("");
-      setChargeAmount("");
       setShowAddCharge(false);
+      setAddChargeError(null);
       refetch();
     },
+    onError: (err: unknown) => setAddChargeError(errorMessage(err, "Could not add that charge.")),
   });
 
   const addDeposit = useMutation({
@@ -259,6 +404,22 @@ export default function FolioPage() {
       setActiveOrderId(order.id);
     },
   });
+
+  const inProgressOrder = roomServiceOrders?.find((o) => IN_PROGRESS_STATUSES.has(o.status));
+
+  // The "Food" quick-action card: jump back into an order already in
+  // progress (including one the panel below was dismissed for — dismissing
+  // only hides the panel, the order itself stays open) rather than always
+  // starting a brand new one.
+  function handleFoodCard() {
+    if (activeOrderId) return;
+    if (inProgressOrder) {
+      setDismissed(false);
+      setActiveOrderId(inProgressOrder.id);
+    } else {
+      orderFood.mutate();
+    }
+  }
 
   const checkOut = useMutation({
     mutationFn: async () =>
@@ -311,8 +472,15 @@ export default function FolioPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
-        {/* Left: the bill */}
-        <div className="space-y-4">
+        {/* Left: the bill + quick actions. This outer cell stretches to
+           match the (much taller) menu grid on the right — grid's default
+           align-items:stretch — which is exactly the room the inner sticky
+           wrapper below needs to stay pinned without its own later
+           children (the action cards, checkout button) scrolling out from
+           underneath it once it "sticks", the way they did when only the
+           Charges card itself was sticky. */}
+        <div className="min-w-0">
+        <div className="space-y-4 lg:sticky lg:top-6">
           <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
             <p className="mb-3 text-sm font-medium text-neutral-500">Charges</p>
             <div className="space-y-2 text-sm">
@@ -369,69 +537,30 @@ export default function FolioPage() {
 
           {inHouse && (
             <>
-              <button
-                onClick={() => {
-                  setDepositError(null);
-                  setShowDeposit(true);
-                }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white py-2.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
-              >
-                <ReceiptIcon className="h-4 w-4" /> Take advance payment
-              </button>
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-                {!showAddCharge ? (
-                  <button
-                    onClick={() => setShowAddCharge(true)}
-                    className="flex w-full items-center justify-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-900"
-                  >
-                    <PlusIcon className="h-4 w-4" /> Add manual charge
-                  </button>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium text-neutral-700">Add manual charge</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={lineType}
-                        onChange={(e) => setLineType(e.target.value)}
-                        className="h-10 rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[#E5484D]"
-                      >
-                        {LINE_TYPES.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        placeholder="Amount"
-                        value={chargeAmount}
-                        onChange={(e) => setChargeAmount(e.target.value)}
-                        className="h-10 rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[#E5484D]"
-                      />
-                    </div>
-                    <input
-                      placeholder="Description (e.g. Laundry service)"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[#E5484D]"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowAddCharge(false)}
-                        className="rounded-xl px-4 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-100"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        disabled={!description || !chargeAmount || addLine.isPending}
-                        onClick={() => addLine.mutate()}
-                        className="flex-1 rounded-xl bg-neutral-900 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-                      >
-                        {addLine.isPending ? "Adding…" : "Add charge"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+              <div className="grid grid-cols-3 gap-3">
+                <QuickActionCard
+                  icon={<UtensilsIcon className="h-5 w-5" />}
+                  label="Food"
+                  onClick={handleFoodCard}
+                  disabled={!restaurantStore || orderFood.isPending}
+                  badge={!activeOrderId && inProgressOrder ? "1" : undefined}
+                />
+                <QuickActionCard
+                  icon={<ListIcon className="h-5 w-5" />}
+                  label="Manual charge"
+                  onClick={() => {
+                    setAddChargeError(null);
+                    setShowAddCharge(true);
+                  }}
+                />
+                <QuickActionCard
+                  icon={<ReceiptIcon className="h-5 w-5" />}
+                  label="Take advance"
+                  onClick={() => {
+                    setDepositError(null);
+                    setShowDeposit(true);
+                  }}
+                />
               </div>
 
               {!confirmingCheckout ? (
@@ -466,15 +595,17 @@ export default function FolioPage() {
             </>
           )}
 
-          {invoice && (
-            <InvoiceCard
-              invoice={invoice}
-              onChanged={() => {
-                queryClient.invalidateQueries({ queryKey: ["folio-invoice", invoiceId] });
-                queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-              }}
-            />
-          )}
+        </div>
+
+        {invoice && (
+          <InvoiceCard
+            invoice={invoice}
+            onChanged={() => {
+              queryClient.invalidateQueries({ queryKey: ["folio-invoice", invoiceId] });
+              queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+            }}
+          />
+        )}
         </div>
 
         {/* Right: the room-service POS for this stay — built and settled
@@ -531,6 +662,15 @@ export default function FolioPage() {
           </div>
         )}
       </div>
+
+      {showAddCharge && (
+        <AddChargeModal
+          onClose={() => setShowAddCharge(false)}
+          onSubmit={(values) => addLine.mutate(values)}
+          submitting={addLine.isPending}
+          error={addChargeError}
+        />
+      )}
 
       {showDeposit && (
         <DepositModal
