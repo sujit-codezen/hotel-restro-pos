@@ -50,8 +50,47 @@ class DashboardSummaryView(APIView):
                 "todays_orders": orders_count,
                 "items_sold": items_sold,
                 "pending_credit": pending_credit,
+                "last_7_days": self._last_7_days(request.org, today),
             }
         )
+
+    @staticmethod
+    def _last_7_days(org, today):
+        # A small trend for the dashboard's own charts — deliberately not
+        # the full sales-daily report (that's can_view_reports-gated); this
+        # stays as ungated as the rest of the landing page, just enough
+        # history to draw a 7-point sparkline/trend line, not a report.
+        since = today - timedelta(days=6)
+        period_invoices = Invoice.objects.filter(
+            organization=org, finalized_at__date__gte=since, finalized_at__date__lte=today
+        ).exclude(status=Invoice.Status.VOID)
+
+        by_date = {
+            row["finalized_at__date"]: row
+            for row in period_invoices.values("finalized_at__date").annotate(
+                sales=Sum("grand_total"), orders=Count("id")
+            )
+        }
+        items_by_date = {
+            row["invoice__finalized_at__date"]: row["items_sold"] or 0
+            for row in InvoiceLine.objects.filter(invoice__in=period_invoices)
+            .values("invoice__finalized_at__date")
+            .annotate(items_sold=Sum("quantity"))
+        }
+
+        days = []
+        for offset in range(6, -1, -1):
+            day = today - timedelta(days=offset)
+            row = by_date.get(day)
+            days.append(
+                {
+                    "date": day.isoformat(),
+                    "sales": row["sales"] if row else 0,
+                    "orders": row["orders"] if row else 0,
+                    "items_sold": items_by_date.get(day, 0),
+                }
+            )
+        return days
 
 
 class SalesDailyReportView(APIView):

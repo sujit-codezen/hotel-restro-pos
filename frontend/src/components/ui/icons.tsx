@@ -186,3 +186,29 @@ export const ReceiptIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+export const ShieldIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 20 20" fill="none" className={className ?? base}>
+    <path
+      d="M10 2.5 16 5v4.5c0 4.2-2.7 6.9-6 8-3.3-1.1-6-3.8-6-8V5l6-2.5Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+    <path d="M7.3 10 9.2 12l3.5-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const LockIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 20 20" fill="none" className={className ?? base}>
+    <rect x="4" y="9" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="10" cy="13" r="1.25" fill="currentColor" />
+  </svg>
+);
+
+export const CheckIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 20 20" fill="none" className={className ?? base}>
+    <path d="M4 10.5 8 14.5 16 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+

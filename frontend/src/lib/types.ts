@@ -255,9 +255,12 @@ export type Folio = {
   balance_due: number;
 };
 
+export type DashboardDayTrend = { date: string; sales: number; orders: number; items_sold: number };
+
 export type DashboardSummary = {
   todays_sales: number;
   todays_orders: number;
   items_sold: number;
   pending_credit: number;
+  last_7_days: DashboardDayTrend[];
 };

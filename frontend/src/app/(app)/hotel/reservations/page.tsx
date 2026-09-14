@@ -848,6 +848,15 @@ function ReservationCard({
               <ReceiptIcon className="h-3.5 w-3.5" /> Food &amp; payment
             </Link>
           )}
+
+          {reservation.status === "CHECKED_OUT" && reservation.guest_stay_id && (
+            <Link
+              href={`/hotel/folio/${reservation.guest_stay_id}`}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-500 hover:bg-neutral-100"
+            >
+              <ReceiptIcon className="h-3.5 w-3.5" /> View bill
+            </Link>
+          )}
         </div>
       </div>
 

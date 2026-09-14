@@ -332,10 +332,22 @@ export default function FolioPage() {
     },
   });
 
-  const { data: invoice } = useQuery<InvoiceT>({
-    queryKey: ["folio-invoice", invoiceId],
-    queryFn: async () => (await api.get<InvoiceT>(`/invoices/${invoiceId}/`)).data,
-    enabled: !!invoiceId,
+  // invoiceId is only ever set locally, right after this page itself runs
+  // checkout — landing here fresh (e.g. the "View bill" link on an already
+  // checked-out reservation) has no such state, so fall back to looking the
+  // invoice up by folio once Folio.close() has settled it (folio.status
+  // flips to CLOSED in that same call, before the invoice is necessarily
+  // paid/finalized — see Folio.close() on the backend).
+  const { data: invoice } = useQuery<InvoiceT | null>({
+    queryKey: ["folio-invoice", invoiceId, folio?.id, folio?.status],
+    queryFn: async () => {
+      if (invoiceId) return (await api.get<InvoiceT>(`/invoices/${invoiceId}/`)).data;
+      const { data } = await api.get<Paginated<InvoiceT>>("/invoices/", {
+        params: { folio: folio!.id },
+      });
+      return data.results[0] ?? null;
+    },
+    enabled: !!invoiceId || folio?.status === "CLOSED",
   });
 
   const restaurantStore = findRestaurantStoreFor(stores, stay?.store);
@@ -471,7 +483,17 @@ export default function FolioPage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-6",
+          // Once checked out there's no room-service column to sit beside
+          // (that whole right side stops rendering below), so the two-track
+          // [380px_1fr] split would just leave a huge dead 1fr gap next to
+          // a narrow bill — cap and center a single column instead, same
+          // as the customer detail page.
+          inHouse ? "xl:grid-cols-[380px_1fr]" : "mx-auto max-w-xl"
+        )}
+      >
         {/* Left: the bill + quick actions. This outer cell stretches to
            match the (much taller) menu grid on the right — grid's default
            align-items:stretch — which is exactly the room the inner sticky
