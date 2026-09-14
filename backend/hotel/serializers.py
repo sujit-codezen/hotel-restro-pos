@@ -90,12 +90,17 @@ class ReservationSerializer(serializers.ModelSerializer):
         return obj.room.number if obj.room_id else None
 
     def get_guest_stay_id(self, obj):
-        # Lets the frontend jump straight from a checked-in reservation to
-        # its folio (order food to the room, take a deposit) without a
-        # separate lookup. IN_HOUSE only — a reservation can have more than
-        # one past GuestStay (e.g. a previous cancelled/no-show cycle), but
-        # only the current occupancy is ever relevant to link to.
-        stay = next((s for s in obj.stays.all() if s.status == GuestStay.Status.IN_HOUSE), None)
+        # Lets the frontend jump straight from a reservation to its folio
+        # (order food to the room, take a deposit while IN_HOUSE; review the
+        # final bill once CHECKED_OUT). Prefers the current occupancy if
+        # there is one; a reservation can have more than one past GuestStay
+        # (e.g. a previous cancelled/no-show cycle), so once nothing is
+        # IN_HOUSE anymore this falls back to the most recent one instead of
+        # leaving checked-out reservations with no folio to look back at.
+        stays = list(obj.stays.all())
+        stay = next((s for s in stays if s.status == GuestStay.Status.IN_HOUSE), None)
+        if stay is None and stays:
+            stay = max(stays, key=lambda s: s.check_in_at)
         return str(stay.id) if stay else None
 
     def validate(self, attrs):

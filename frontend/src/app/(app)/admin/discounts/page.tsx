@@ -3,9 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { PermissionGate } from "@/components/permission-gate";
 import { PlusIcon, TagIcon, TrashIcon, XIcon } from "@/components/ui/icons";
 import { api } from "@/lib/api";
-import { Paginated } from "@/lib/hooks";
+import { Paginated, useHasPermission } from "@/lib/hooks";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type DiscountType = "PERCENT" | "FIXED";
@@ -195,6 +196,7 @@ function DiscountCard({ discount, onDelete, deleting }: { discount: Discount; on
 }
 
 export default function DiscountsPage() {
+  const canManageDiscounts = useHasPermission("can_manage_discounts");
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -221,6 +223,7 @@ export default function DiscountsPage() {
   });
 
   return (
+    <PermissionGate allowed={canManageDiscounts}>
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -299,5 +302,6 @@ export default function DiscountsPage() {
         />
       )}
     </div>
+    </PermissionGate>
   );
 }

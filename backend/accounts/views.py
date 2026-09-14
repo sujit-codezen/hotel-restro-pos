@@ -1,11 +1,15 @@
+from django.db import transaction
 from django.db.models import ProtectedError
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
-from accounts.models import Role, StoreStaff
+from accounts.models import Role, StoreStaff, User
 from accounts.serializers import (
+    InviteStaffSerializer,
     RegisterSerializer,
     RoleSerializer,
     StoreStaffSerializer,
@@ -37,7 +41,9 @@ class StoreStaffViewSet(viewsets.ModelViewSet):
     permission_classes = [IsOrgMember]
 
     def get_queryset(self):
-        return StoreStaff.objects.filter(store__organization=self.request.org)
+        return StoreStaff.objects.filter(store__organization=self.request.org).select_related(
+            "user", "role"
+        ).order_by("user__email")
 
     def _check_cross_org_refs(self, serializer):
         # Without OrgScopedViewSetMixin's store-ownership check, nothing
@@ -65,6 +71,35 @@ class StoreStaffViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         require_permission(self.request, "can_manage_staff", store=instance.store)
         instance.delete()
+
+    @action(detail=False, methods=["post"])
+    def invite(self, request):
+        """The org-scoped counterpart to /auth/register/ (which is
+        AllowAny and deliberately leaves a self-signed-up user org-less
+        until they complete onboarding). This is what the Staff page
+        actually calls: it creates the user pre-attached to request.org so
+        they land straight in the dashboard on first login instead of
+        being bounced to "Set up your business"."""
+        serializer = InviteStaffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        store, role = data["store"], data["role"]
+
+        require_permission(request, "can_manage_staff", store=store)
+        if store.organization_id != request.org.id:
+            raise ValidationError({"store": "Store does not belong to your organization."})
+        if role.organization_id != request.org.id:
+            raise ValidationError({"role": "Role does not belong to your organization."})
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=data["email"],
+                password=data["password"],
+                first_name=data["first_name"],
+                organization=request.org,
+            )
+            staff = StoreStaff.objects.create(user=user, store=store, role=role)
+        return Response(StoreStaffSerializer(staff).data, status=201)
 
 
 class RoleViewSet(RequiresPermissionMixin, OrgScopedViewSetMixin, viewsets.ModelViewSet):

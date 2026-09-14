@@ -3,10 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { PermissionGate } from "@/components/permission-gate";
 import { EditIcon, ListIcon, PlusIcon, TagIcon, TrashIcon, UtensilsIcon, XIcon } from "@/components/ui/icons";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
-import { Paginated } from "@/lib/hooks";
+import { Paginated, useHasPermission } from "@/lib/hooks";
 import { MenuCategory, MenuItem, Modifier, ModifierGroup, TaxClass } from "@/lib/types";
 import { cn, formatCurrency, nameToGradient } from "@/lib/utils";
 
@@ -921,6 +922,7 @@ function ItemFormModal({
 /* ---------- Page ---------- */
 
 export default function AdminMenuPage() {
+  const canManageMenu = useHasPermission("can_manage_menu");
   const storeId = useAuthStore((s) => s.activeStoreId);
   const queryClient = useQueryClient();
 
@@ -1116,6 +1118,7 @@ export default function AdminMenuPage() {
   ];
 
   return (
+    <PermissionGate allowed={canManageMenu}>
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1552,5 +1555,6 @@ export default function AdminMenuPage() {
         </>
       )}
     </div>
+    </PermissionGate>
   );
 }

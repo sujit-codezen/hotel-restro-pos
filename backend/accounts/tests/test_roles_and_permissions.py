@@ -129,6 +129,108 @@ class PermissionEnforcementTests(APITestCase):
         response = self.client.get("/api/dashboard/summary/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_staff_list_includes_the_users_display_name_and_email(self):
+        # StoreStaff only has a `user` FK — the list used to show nothing
+        # but that raw id, so the frontend needs the name/email surfaced
+        # here instead of making a separate lookup per row.
+        self.manager.first_name = "Maya"
+        self.manager.last_name = "Gurung"
+        self.manager.save(update_fields=["first_name", "last_name"])
+        self.client.force_authenticate(self.manager)
+        response = self.client.get("/api/staff/")
+        row = next(r for r in response.data["results"] if r["user"] == self.manager.id)
+        self.assertEqual(row["user_email"], "manager@perm.test")
+        self.assertEqual(row["user_name"], "Maya Gurung")
+
+    def test_staff_user_name_is_null_when_no_name_is_set(self):
+        self.client.force_authenticate(self.manager)
+        response = self.client.get("/api/staff/")
+        row = next(r for r in response.data["results"] if r["user"] == self.cashier.id)
+        self.assertIsNone(row["user_name"])
+
+
+class InviteStaffTests(APITestCase):
+    """POST /api/staff/invite/ — the org-scoped counterpart to the public
+    /auth/register/ self-signup endpoint. The Staff page used to call
+    /auth/register/ directly, which leaves organization=None on the new
+    user (by design — a fresh self-signup has no org yet), so an invited
+    staff member's first login bounced them to onboarding instead of the
+    dashboard. This is the fix: invite must attach them to the inviter's
+    org up front."""
+
+    def setUp(self):
+        self.org, self.store = make_org("invite")
+        self.manager, _ = make_staff_user(
+            self.org, self.store, "manager@invite.test", can_manage_staff=True
+        )
+        self.cashier, _ = make_staff_user(self.org, self.store, "cashier@invite.test")
+        self.role = Role.objects.create(organization=self.org, name="Waiter")
+
+    def test_manager_can_invite_a_new_staff_member(self):
+        self.client.force_authenticate(self.manager)
+        response = self.client.post(
+            "/api/staff/invite/",
+            {
+                "email": "newhire@invite.test",
+                "first_name": "Maya",
+                "password": "testpass123",
+                "store": str(self.store.id),
+                "role": str(self.role.id),
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["user_email"], "newhire@invite.test")
+        self.assertEqual(response.data["user_name"], "Maya")
+
+        new_user = User.objects.get(email="newhire@invite.test")
+        # The actual regression: this must be set, not None, or the
+        # invited user gets sent to onboarding instead of the dashboard.
+        self.assertEqual(new_user.organization_id, self.org.id)
+        self.assertTrue(new_user.check_password("testpass123"))
+        self.assertTrue(StoreStaff.objects.filter(user=new_user, store=self.store, role=self.role).exists())
+
+    def test_cashier_cannot_invite(self):
+        self.client.force_authenticate(self.cashier)
+        response = self.client.post(
+            "/api/staff/invite/",
+            {
+                "email": "newhire2@invite.test",
+                "password": "testpass123",
+                "store": str(self.store.id),
+                "role": str(self.role.id),
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(User.objects.filter(email="newhire2@invite.test").exists())
+
+    def test_cannot_invite_with_an_email_already_in_use(self):
+        self.client.force_authenticate(self.manager)
+        response = self.client.post(
+            "/api/staff/invite/",
+            {
+                "email": "cashier@invite.test",
+                "password": "testpass123",
+                "store": str(self.store.id),
+                "role": str(self.role.id),
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cannot_invite_into_another_orgs_store(self):
+        other_org, other_store = make_org("invite-other")
+        self.client.force_authenticate(self.manager)
+        response = self.client.post(
+            "/api/staff/invite/",
+            {
+                "email": "newhire3@invite.test",
+                "password": "testpass123",
+                "store": str(other_store.id),
+                "role": str(self.role.id),
+            },
+        )
+        self.assertIn(response.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN))
+        self.assertFalse(User.objects.filter(email="newhire3@invite.test").exists())
+
 
 class CrossOrgRoleAssignmentTests(APITestCase):
     def setUp(self):

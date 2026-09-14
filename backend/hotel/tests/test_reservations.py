@@ -92,3 +92,12 @@ class ReservationTests(APITestCase):
         self.client.post(f"/api/guest-stays/{check_in.data['id']}/check-out/")
         self.reservation.refresh_from_db()
         self.assertEqual(self.reservation.status, Reservation.Status.CHECKED_OUT)
+
+    def test_guest_stay_id_still_points_to_the_folio_after_check_out(self):
+        # A checked-out reservation has no IN_HOUSE stay anymore, but the
+        # frontend still needs somewhere to link a "View bill" button to —
+        # this used to go back to null the moment the guest checked out.
+        check_in = self.client.post(f"/api/reservations/{self.reservation.id}/check-in/")
+        self.client.post(f"/api/guest-stays/{check_in.data['id']}/check-out/")
+        response = self.client.get(f"/api/reservations/{self.reservation.id}/")
+        self.assertEqual(response.data["guest_stay_id"], check_in.data["id"])
