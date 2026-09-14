@@ -143,6 +143,7 @@ function SalesTrendChart({ days, loading }: { days: DashboardDayTrend[]; loading
   const areaPath = `${linePath} L${points[n - 1].x.toFixed(1)},${baseline} L${points[0].x.toFixed(1)},${baseline} Z`;
   const colWidth = innerWidth / n;
   const last = points[n - 1];
+  const dayLabel = (i: number) => (i === n - 1 ? "Today" : weekday(days[i].date));
 
   const hovered = hoverIndex !== null ? points[hoverIndex] : null;
   const tooltipAnchor = hoverIndex === 0 ? "left" : hoverIndex === n - 1 ? "right" : "center";
@@ -199,7 +200,7 @@ function SalesTrendChart({ days, loading }: { days: DashboardDayTrend[]; loading
             );
           })}
 
-          <text x={last.x} y={last.y - 12} textAnchor="middle" className="fill-neutral-900 text-[11px] font-semibold">
+          <text x={last.x - 8} y={last.y - 10} textAnchor="end" className="fill-neutral-900 text-[11px] font-semibold">
             {formatCurrency(last.day.sales)}
           </text>
 
@@ -211,7 +212,7 @@ function SalesTrendChart({ days, loading }: { days: DashboardDayTrend[]; loading
               textAnchor="middle"
               className={cn("text-[10px]", i === n - 1 ? "fill-neutral-700 font-medium" : "fill-neutral-400")}
             >
-              {i === n - 1 ? "Today" : weekday(d.date)}
+              {dayLabel(i)}
             </text>
           ))}
 
@@ -225,7 +226,7 @@ function SalesTrendChart({ days, loading }: { days: DashboardDayTrend[]; loading
               fill="transparent"
               tabIndex={0}
               role="img"
-              aria-label={`${weekday(p.day.date)}: ${formatCurrency(p.day.sales)}, ${p.day.orders} order${p.day.orders === 1 ? "" : "s"}`}
+              aria-label={`${dayLabel(i)}: ${formatCurrency(p.day.sales)}, ${p.day.orders} order${p.day.orders === 1 ? "" : "s"}`}
               onMouseEnter={() => setHoverIndex(i)}
               onFocus={() => setHoverIndex(i)}
               onMouseLeave={() => setHoverIndex(null)}
@@ -247,7 +248,7 @@ function SalesTrendChart({ days, loading }: { days: DashboardDayTrend[]; loading
           >
             <p className="font-semibold text-white">{formatCurrency(hovered.day.sales)}</p>
             <p className="text-neutral-300">
-              {weekday(hovered.day.date)} · {hovered.day.orders} order{hovered.day.orders === 1 ? "" : "s"}
+              {dayLabel(hoverIndex!)} · {hovered.day.orders} order{hovered.day.orders === 1 ? "" : "s"}
             </p>
           </div>
         )}
